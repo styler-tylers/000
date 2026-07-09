@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>相場千里眼 — AI四象分析ターミナル</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=IBM+Plex+Sans+JP:wght@400;600&family=IBM+Plex+Mono:wght@500;700&display=swap');
+:root{
+  --bg:#0E1220; --surface:#171D31; --surface2:#1E2540; --line:#2A3252;
+  --text:#EDEFF7; --sub:#9AA3BF; --up:#F25C4D; --down:#4C8DCB; --gold:#E8B44A;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{background:var(--bg); color:var(--text); font-family:'IBM Plex Sans JP',sans-serif; min-height:100vh;}
+.wrap{max-width:880px; margin:0 auto; padding:20px 16px 60px;}
+h1{font-family:'Shippori Mincho',serif; font-weight:800; font-size:30px; letter-spacing:.06em;}
+h1 .gold{color:var(--gold);}
+.tagline{font-size:11px; color:var(--sub); letter-spacing:.15em;}
+.sub-desc{font-size:12px; color:var(--sub); margin:4px 0 16px;}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px;}
+.row{display:flex; gap:8px;}
+input[type=text],input[type=password]{
+  flex:1; background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  color:var(--text); padding:12px 14px; font-size:15px; font-family:inherit; width:100%;
+}
+input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+button{cursor:pointer; font-family:inherit;}
+.btn-main{background:var(--gold); color:#141414; border:none; border-radius:10px; padding:0 20px; font-size:14px; font-weight:700;}
+.btn-main:disabled{background:var(--line); color:var(--sub); cursor:default;}
+.btn-ghost{background:transparent; border:1px solid var(--line); color:var(--sub); border-radius:999px; padding:8px 20px; font-size:13px;}
+.section-label{font-size:11px; color:var(--sub); letter-spacing:.1em; margin:16px 0 6px;}
+.chips{display:flex; flex-wrap:wrap; gap:8px;}
+.chip{display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 6px 6px 12px; font-size:13px;}
+.chip .open{background:none; border:none; color:var(--text); display:flex; gap:6px; align-items:center; font-size:13px;}
+.chip .del{background:var(--line); border:none; color:var(--sub); border-radius:50%; width:20px; height:20px; font-size:11px; line-height:1;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.hidden{display:none !important;}
+.loading-box{text-align:center; padding:40px 16px;}
+.loading-eye{font-family:'Shippori Mincho',serif; font-size:40px; animation:pulse 1.6s ease infinite;}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.error-box{background:rgba(242,92,77,.1); border:1px solid var(--up); border-radius:12px; padding:14px 16px; font-size:13px; margin-top:12px;}
+.warn-box{background:rgba(232,180,74,.1); border:1px solid var(--gold); border-radius:10px; padding:10px 14px; font-size:12px; line-height:1.7; margin-bottom:16px;}
+.summary{background:linear-gradient(160deg,var(--surface2),var(--surface)); border:1px solid var(--line); border-radius:16px; padding:20px; display:flex; flex-wrap:wrap; gap:20px; align-items:center; margin-bottom:16px;}
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-bottom:16px;}
+.axis-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px;}
+.axis-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+.axis-kanji{font-family:'Shippori Mincho',serif; font-size:20px; margin-right:8px;}
+.bar{height:4px; background:var(--line); border-radius:2px; margin-bottom:8px;}
+.bar>div{height:4px; border-radius:2px; transition:width .8s ease;}
+.axis-card p{font-size:12px; color:var(--sub); line-height:1.6; margin-bottom:6px;}
+.axis-card ul{padding-left:16px; font-size:12px; line-height:1.7;}
+.scenario-item{background:var(--surface2); border-radius:8px; padding:10px 12px;}
+.devil{background:linear-gradient(160deg,#241628,#1B1220); border:1px solid #4A2A4A; border-radius:12px; padding:16px;}
+.devil h3{font-family:'Shippori Mincho',serif; font-size:15px; color:#D08BD0; margin-bottom:8px;}
+.devil p{font-size:13px; line-height:1.8;}
+.catalyst-row{display:flex; gap:10px; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px;}
+.catalyst-row:last-child{border-bottom:none;}
+footer{margin-top:40px; border-top:1px solid var(--line); padding-top:14px; font-size:11px; color:var(--sub); line-height:1.8;}
+.key-panel{margin-bottom:16px;}
+.key-panel summary{cursor:pointer; font-size:12px; color:var(--sub); padding:6px 0;}
+.key-note{font-size:11px; color:var(--sub); margin-top:6px; line-height:1.7;}
+.center{text-align:center;}
+canvas{max-width:100%;}
+@media(prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header style="display:flex; align-items:baseline; gap:12px;">
+    <h1>相場<span class="gold">千里眼</span></h1>
+    <span class="tagline">AI四象分析ターミナル</span>
+  </header>
+  <p class="sub-desc">技術 × 現在の財務 × 未来の財務 × 市場感情 — 四つの眼で銘柄を見通す</p>
+
+  <details class="key-panel card" id="keyPanel">
+    <summary>🔑 Anthropic APIキー設定</summary>
+    <div class="row" style="margin-top:10px;">
+      <input type="password" id="apiKey" placeholder="sk-ant-...">
+      <button class="btn-main" style="padding:10px 16px;" onclick="saveKey()">保存</button>
+    </div>
+    <p class="key-note">キーはこの端末のブラウザ内(localStorage)にのみ保存され、Anthropic API以外には送信されません。共有端末では保存しないでください。</p>
+  </details>
+
+  <div class="row">
+    <input type="text" id="ticker" placeholder="銘柄名・コード(例: 7203 / トヨタ / AAPL / USDJPY)">
+    <button class="btn-main" id="goBtn" onclick="run()">見通す</button>
+  </div>
+
+  <div id="watchSection" class="hidden">
+    <div class="section-label">登録銘柄</div>
+    <div class="chips" id="watchChips"></div>
+  </div>
+
+  <div id="loading" class="card loading-box hidden" style="margin-top:16px;">
+    <div class="loading-eye">👁</div>
+    <p id="loadMsg" style="color:var(--sub); font-size:14px; margin-top:12px;">分析中…</p>
+    <p style="color:var(--sub); font-size:11px; opacity:.7; margin-top:4px;">Web検索を伴うため30〜60秒かかることがあります</p>
+  </div>
+
+  <div id="errorBox" class="error-box hidden"></div>
+
+  <div id="result" class="hidden" style="margin-top:16px;"></div>
+
+  <div id="empty" class="center" style="padding:50px 20px; color:var(--sub);">
+    <div style="font-family:'Shippori Mincho',serif; font-size:52px; margin-bottom:10px;">👁</div>
+    <p style="font-size:14px; line-height:1.9;">銘柄名またはコードを入力すると、AIがWeb検索で最新情報を集め、<br>四つの眼(技・財・先・情)で今後3ヶ月の値動きを見通します。</p>
+  </div>
+
+  <footer>⚠️ 本アプリの出力はAIによる推定であり、投資助言ではありません。予測は外れることが常にあり、価格・日付等の情報も不正確な場合があります。投資判断はご自身の責任で、必ず一次情報をご確認ください。</footer>
+</div>
+
+<script>
+const MODEL = "claude-sonnet-4-6";
+const WEATHER = {sunny:{icon:"☀️",label:"快晴"},partlySunny:{icon:"⛅",label:"晴れ時々曇り"},cloudy:{icon:"☁️",label:"曇り"},rainy:{icon:"🌧️",label:"雨"},storm:{icon:"⛈️",label:"嵐"}};
+const LOADING_MSGS = ["最新の株価・ニュースを検索中…","テクニカル指標を読み解いています…","財務データを精査中…","将来の成長ドライバーを推定中…","市場の空気(センチメント)を測定中…","悪魔の代弁者が反論を準備中…","総合スコアを算出しています…"];
+let loadTimer = null, charts = [];
+
+/* ── APIキー ── */
+function getKey(){ return localStorage.getItem("anthropicKey") || ""; }
+function saveKey(){
+  const v = document.getElementById("apiKey").value.trim();
+  if(!v){ alert("APIキーを入力してください"); return; }
+  localStorage.setItem("anthropicKey", v);
+  document.getElementById("keyPanel").open = false;
+}
+document.getElementById("apiKey").value = getKey();
+if(!getKey()) document.getElementById("keyPanel").open = true;
+
+/* ── ウォッチリスト ── */
+function getWatch(){ try{ return JSON.parse(localStorage.getItem("watchlist")||"[]"); }catch{ return []; } }
+function setWatch(list){ localStorage.setItem("watchlist", JSON.stringify(list)); renderWatch(); }
+function renderWatch(){
+  const list = getWatch();
+  const sec = document.getElementById("watchSection");
+  sec.classList.toggle("hidden", list.length === 0);
+  const chips = document.getElementById("watchChips");
+  chips.innerHTML = "";
+  list.forEach(w => {
+    const chip = document.createElement("div"); chip.className = "chip";
+    const open = document.createElement("button"); open.className = "open";
+    open.innerHTML = `<span>${(WEATHER[w.weather]||WEATHER.cloudy).icon}</span><span style="font-weight:600">${esc(w.name)}</span><span class="mono" style="color:${scoreColor(w.score)}">${w.score}</span>`;
+    open.onclick = () => openFromWatch(w.ticker);
+    const del = document.createElement("button"); del.className = "del"; del.textContent = "✕";
+    del.setAttribute("aria-label", w.name + "を削除");
+    del.onclick = () => setWatch(getWatch().filter(x => x.ticker !== w.ticker));
+    chip.append(open, del); chips.appendChild(chip);
+  });
+}
+function openFromWatch(t){
+  document.getElementById("ticker").value = t;
+  const cached = localStorage.getItem("analysis:" + t);
+  if(cached){ try{ render(JSON.parse(cached)); return; }catch{} }
+  run();
+}
+
+/* ── ユーティリティ ── */
+function esc(s){ const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+function scoreColor(s){ if(s>=70) return "var(--up)"; if(s>=50) return "var(--gold)"; if(s>=35) return "var(--sub)"; return "var(--down)"; }
+function show(id, on){ document.getElementById(id).classList.toggle("hidden", !on); }
+function setLoadMsg(m){ document.getElementById("loadMsg").textContent = m; }
+
+/* ── Claude API ── */
+async function callClaude(body){
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": getKey(),
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => { throw new Error(`API応答を読み取れませんでした (HTTP ${res.status})`); });
+  if(data?.type === "error" || data?.error) throw new Error(`APIエラー: ${data.error?.message || "不明"}`);
+  if(!res.ok) throw new Error(`API応答エラー (HTTP ${res.status})`);
+  return data;
+}
+function extractText(data){
+  return (data.content||[]).filter(b => b.type === "text" && typeof b.text === "string").map(b => b.text).join("\n");
+}
+
+/* ── 分析 ── */
+async function analyze(ticker){
+  // 第1段階: Web検索で事実収集
+  const factPrompt = `「${ticker}」(株式・為替・指数いずれか)についてWeb検索し、以下を箇条書きで簡潔に報告してください。分析や意見は不要、事実のみ:
+- 正式名称・ティッカー・市場
+- 現在価格(通貨単位付き)と基準日
+- 直近1ヶ月の値動き・テクニカル状況(移動平均・RSI等が分かれば)
+- 直近の業績/経済指標の要点
+- 直近の重要ニュース2〜3件
+- 今後予定されるイベント(決算日・政策発表等)
+- 市場心理(強気/弱気の論調)`;
+
+  let facts = "", live = true;
+  try {
+    let messages = [{role:"user", content: factPrompt}];
+    let data = await callClaude({model: MODEL, max_tokens: 2000, messages,
+      tools: [{type:"web_search_20250305", name:"web_search"}]});
+    let guard = 0;
+    while(data.stop_reason === "pause_turn" && guard < 5){
+      messages = [...messages, {role:"assistant", content: data.content}];
+      data = await callClaude({model: MODEL, max_tokens: 2000, messages,
+        tools: [{type:"web_search_20250305", name:"web_search"}]});
+      guard++;
+    }
+    facts = extractText(data);
+    live = !!facts.trim();
+  } catch(e){ live = false; }
+
+  // 第2段階: JSON分析
+  setLoadMsg("四象分析を実行中…");
+  const basis = live
+    ? `以下は「${ticker}」に関する最新の調査メモです。これをもとに`
+    : `「${ticker}」について、あなたの学習知識の範囲で(最新データがない前提で保守的に)`;
+  const jsonPrompt = `${basis}4軸分析を行い、必ずJSONのみで回答してください。前置き・後書き・Markdownコードブロックは一切禁止。最初の文字は必ず { にすること。
+${live ? "\n調査メモ:\n" + facts + "\n" : ""}
+スキーマ:
+{"ticker":"","name":"","market":"","currentPrice":数値,"currency":"","asOf":"YYYY-MM-DD","weather":"sunny|partlySunny|cloudy|rainy|storm","scores":{"technical":{"score":50,"summary":"60字以内","keyPoints":["25字以内","25字以内"]},"fundamental":{"score":50,"summary":"","keyPoints":["",""]},"futureFundamental":{"score":50,"summary":"","keyPoints":["",""]},"sentiment":{"score":50,"summary":"","keyPoints":["",""]}},"overallScore":50,"confidence":50,"horizon":"3ヶ月","scenarios":[{"name":"強気","probability":30,"targetPrice":数値,"rationale":"40字以内"},{"name":"基本","probability":45,"targetPrice":数値,"rationale":""},{"name":"弱気","probability":25,"targetPrice":数値,"rationale":""}],"catalysts":[{"date":"","event":"25字以内","impact":"up|down|neutral"}](最大3件),"devilsAdvocate":"多数派への最強の反論80字以内","oneLiner":"予測要約50字以内"}
+
+注意: scoreは50が中立。probability合計100。futureFundamentalは今後1-3年の成長ドライバーの先読み評価。為替・指数の場合はfundamentalを金利差・経済指標で代替評価。${live ? "" : "confidenceは低め(50以下)に。"}`;
+
+  const jd = await callClaude({model: MODEL, max_tokens: 2000, messages:[{role:"user", content: jsonPrompt}]});
+  const text = extractText(jd);
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  if(s === -1 || e === -1) throw new Error("分析結果の形式が不正でした。もう一度お試しください。");
+  let parsed;
+  try { parsed = JSON.parse(text.slice(s, e+1).replace(/```json|```/g, "")); }
+  catch { throw new Error("分析結果の解析に失敗しました。もう一度お試しください。"); }
+  const result = normalize(parsed, ticker);
+  result._live = live;
+  return result;
+}
+
+function normalize(a, fb){
+  const axis = x => ({score: Number(x?.score ?? 50), summary: x?.summary || "情報不足のため中立評価", keyPoints: Array.isArray(x?.keyPoints) ? x.keyPoints : []});
+  const cur = Number(a?.currentPrice ?? 0);
+  const names = ["強気","基本","弱気"];
+  const scenarios = names.map((n,i) => {
+    const s = (a?.scenarios||[]).find(x => x?.name === n) || (a?.scenarios||[])[i] || {};
+    return {name:n, probability:Number(s.probability ?? [30,45,25][i]), targetPrice:Number(s.targetPrice ?? cur), rationale:s.rationale || ""};
+  });
+  return {
+    ticker: a?.ticker || fb, name: a?.name || fb, market: a?.market || "—",
+    currentPrice: cur, currency: a?.currency || "",
+    asOf: a?.asOf || new Date().toISOString().slice(0,10),
+    weather: WEATHER[a?.weather] ? a.weather : "cloudy",
+    scores: {technical:axis(a?.scores?.technical), fundamental:axis(a?.scores?.fundamental), futureFundamental:axis(a?.scores?.futureFundamental), sentiment:axis(a?.scores?.sentiment)},
+    overallScore: Number(a?.overallScore ?? 50), confidence: Number(a?.confidence ?? 50),
+    horizon: a?.horizon || "3ヶ月", scenarios,
+    catalysts: Array.isArray(a?.catalysts) ? a.catalysts : [],
+    devilsAdvocate: a?.devilsAdvocate || "", oneLiner: a?.oneLiner || "",
+  };
+}
+
+/* ── 実行 ── */
+async function run(){
+  const t = document.getElementById("ticker").value.trim();
+  if(!t) return;
+  if(!getKey()){ document.getElementById("keyPanel").open = true; showError("先にAPIキーを設定してください。"); return; }
+  show("empty", false); show("result", false); show("errorBox", false); show("loading", true);
+  document.getElementById("goBtn").disabled = true;
+  let i = 0; setLoadMsg(LOADING_MSGS[0]);
+  loadTimer = setInterval(() => { i = (i+1) % LOADING_MSGS.length; setLoadMsg(LOADING_MSGS[i]); }, 2600);
+  try {
+    const result = await analyze(t);
+    localStorage.setItem("analysis:" + result.ticker, JSON.stringify(result));
+    render(result);
+  } catch(e){
+    showError(e.message);
+  } finally {
+    clearInterval(loadTimer);
+    show("loading", false);
+    document.getElementById("goBtn").disabled = false;
+  }
+}
+function showError(msg){
+  const box = document.getElementById("errorBox");
+  box.textContent = msg; box.classList.remove("hidden");
+}
+
+/* ── 描画 ── */
+function scenarioPaths(cur, scenarios){
+  const weeks = 12, labels = [], series = {};
+  scenarios.forEach(s => series[s.name] = []);
+  for(let w = 0; w <= weeks; w++){
+    labels.push(w === 0 ? "現在" : w + "週");
+    const t = w / weeks, ease = t*t*(3-2*t);
+    scenarios.forEach(s => {
+      const wob = (w === 0 || w === weeks) ? 0 : Math.sin(w*2.1 + s.targetPrice) * cur * 0.006;
+      series[s.name].push(Math.round((cur + (s.targetPrice - cur)*ease + wob)*100)/100);
+    });
+  }
+  return {labels, series};
+}
+
+function axisCardHTML(kanji, title, d){
+  const col = scoreColor(d.score);
+  return `<div class="axis-card">
+    <div class="axis-head">
+      <div><span class="axis-kanji" style="color:${col}">${kanji}</span><span style="font-size:13px;font-weight:600">${title}</span></div>
+      <span class="mono" style="font-size:18px;font-weight:700;color:${col}">${d.score}</span>
+    </div>
+    <div class="bar"><div style="width:${d.score}%;background:${col}"></div></div>
+    <p>${esc(d.summary)}</p>
+    <ul>${(d.keyPoints||[]).map(k => "<li>"+esc(k)+"</li>").join("")}</ul>
+  </div>`;
+}
+
+function render(a){
+  show("empty", false); show("errorBox", false);
+  charts.forEach(c => c.destroy()); charts = [];
+  const wx = WEATHER[a.weather] || WEATHER.cloudy;
+  const watched = getWatch().some(w => w.ticker === a.ticker);
+  const el = document.getElementById("result");
+  el.innerHTML = `
+    ${a._live === false ? `<div class="warn-box">⚠️ リアルタイム検索に失敗したため、AIの学習知識に基づく分析です。価格等は最新でない可能性があります。</div>` : ""}
+    <div class="summary">
+      <div style="flex:1 1 220px; min-width:200px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h2 style="font-family:'Shippori Mincho',serif;font-size:24px;">${esc(a.name)}</h2>
+          <span class="mono" style="font-size:13px;color:var(--sub)">${esc(a.ticker)}・${esc(a.market)}</span>
+        </div>
+        <div class="mono" style="font-size:30px;font-weight:700;margin-top:6px;">${a.currentPrice.toLocaleString()} <span style="font-size:14px;color:var(--sub)">${esc(a.currency)}</span></div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:30px">${wx.icon}</span>
+          <div>
+            <div style="font-size:13px;font-weight:600">相場天気: ${wx.label}</div>
+            <div style="font-size:12px;color:var(--sub)">${esc(a.oneLiner)}</div>
+          </div>
+        </div>
+        <button id="watchBtn" class="btn-ghost" style="margin-top:14px;${watched?"":"border-color:var(--gold);color:var(--gold);"}">${watched ? "✓ 登録済み(タップで解除)" : "＋ 銘柄を登録する"}</button>
+      </div>
+      <div style="display:flex;gap:20px;align-items:center;">
+        <div style="position:relative;width:120px;height:120px;">
+          <canvas id="ringChart" width="120" height="120"></canvas>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <span class="mono" style="font-size:32px;font-weight:700;color:${scoreColor(a.overallScore)}">${a.overallScore}</span>
+            <span style="font-size:10px;color:var(--sub)">総合</span>
+          </div>
+        </div>
+        <div class="center">
+          <div style="font-size:11px;color:var(--sub)">AI確信度</div>
+          <div class="mono" style="font-size:22px;font-weight:700;color:var(--gold)">${a.confidence}%</div>
+          <div style="font-size:10px;color:var(--sub);margin-top:2px;">基準日 ${esc(a.asOf)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="section-label" style="margin-top:0;">四象コンパス</div>
+        <canvas id="radarChart" height="230"></canvas>
+      </div>
+      <div>
+        ${axisCardHTML("技","テクニカル",a.scores.technical)}
+        ${axisCardHTML("財","ファンダメンタルズ(現在)",a.scores.fundamental)}
+      </div>
+      <div>
+        ${axisCardHTML("先","ファンダメンタルズ(未来)",a.scores.futureFundamental)}
+        ${axisCardHTML("情","マーケットエモーション",a.scores.sentiment)}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">未来シナリオ扇形図 <span style="color:var(--sub);font-weight:400">(${esc(a.horizon)}先)</span></div>
+      <canvas id="fanChart" height="240"></canvas>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:10px 0 0;">
+        ${a.scenarios.map(s => {
+          const col = s.name === "強気" ? "var(--up)" : s.name === "弱気" ? "var(--down)" : "var(--gold)";
+          return `<div class="scenario-item" style="border-left:3px solid ${col}">
+            <div style="display:flex;justify-content:space-between;font-size:13px;">
+              <span style="font-weight:700;color:${col}">${s.name} ${s.probability}%</span>
+              <span class="mono">${s.targetPrice.toLocaleString()}</span>
+            </div>
+            <div style="font-size:11px;color:var(--sub);margin-top:4px;line-height:1.6;">${esc(s.rationale)}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;">今後の注目イベント(カタリスト)</div>
+        ${(a.catalysts||[]).map(c => `<div class="catalyst-row">
+          <span class="mono" style="font-size:12px;color:var(--sub);min-width:64px;">${esc(c.date)}</span>
+          <span style="flex:1;">${esc(c.event)}</span>
+          <span>${c.impact === "up" ? "🔺" : c.impact === "down" ? "🔻" : "◇"}</span>
+        </div>`).join("") || `<p style="font-size:12px;color:var(--sub)">直近の予定イベントは見つかりませんでした。</p>`}
+      </div>
+      <div class="devil">
+        <h3>😈 悪魔の代弁者</h3>
+        <p>${esc(a.devilsAdvocate)}</p>
+        <p style="margin-top:10px;font-size:11px;color:var(--sub);">多数派の見立てが崩れるとしたら、この筋書きから。</p>
+      </div>
+    </div>
+
+    <div class="center"><button class="btn-ghost" onclick="run()">↻ 最新情報で再分析する</button></div>
+  `;
+  show("result", true);
+
+  document.getElementById("watchBtn").onclick = () => {
+    const list = getWatch();
+    if(list.some(w => w.ticker === a.ticker)) setWatch(list.filter(w => w.ticker !== a.ticker));
+    else setWatch([...list, {ticker:a.ticker, name:a.name, score:a.overallScore, weather:a.weather}]);
+    render(a);
+  };
+
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const cUp = css("--up"), cDown = css("--down"), cGold = css("--gold"), cLine = css("--line"), cText = css("--text"), cSub = css("--sub");
+
+  // 総合スコアリング
+  charts.push(new Chart(document.getElementById("ringChart"), {
+    type: "doughnut",
+    data: {datasets: [{data: [a.overallScore, 100 - a.overallScore],
+      backgroundColor: [a.overallScore >= 70 ? cUp : a.overallScore >= 50 ? cGold : a.overallScore >= 35 ? cSub : cDown, cLine],
+      borderWidth: 0, cutout: "78%"}]},
+    options: {plugins: {legend: {display:false}, tooltip: {enabled:false}}, animation: {duration: 800}},
+  }));
+
+  // レーダー
+  charts.push(new Chart(document.getElementById("radarChart"), {
+    type: "radar",
+    data: {labels: ["技","現財","未来","感情"],
+      datasets: [{data: [a.scores.technical.score, a.scores.fundamental.score, a.scores.futureFundamental.score, a.scores.sentiment.score],
+        borderColor: cGold, backgroundColor: "rgba(232,180,74,.25)", pointBackgroundColor: cGold}]},
+    options: {plugins: {legend: {display:false}},
+      scales: {r: {min:0, max:100, grid:{color:cLine}, angleLines:{color:cLine},
+        pointLabels:{color:cText, font:{size:13, family:"'Shippori Mincho',serif"}}, ticks:{display:false}}}},
+  }));
+
+  // シナリオ扇
+  const fan = scenarioPaths(a.currentPrice, a.scenarios);
+  charts.push(new Chart(document.getElementById("fanChart"), {
+    type: "line",
+    data: {labels: fan.labels, datasets: [
+      {label:"強気", data:fan.series["強気"], borderColor:cUp, borderWidth:2, pointRadius:0, tension:.3},
+      {label:"基本", data:fan.series["基本"], borderColor:cGold, borderWidth:2.5, pointRadius:0, tension:.3},
+      {label:"弱気", data:fan.series["弱気"], borderColor:cDown, borderWidth:2, pointRadius:0, tension:.3},
+    ]},
+    options: {plugins: {legend: {labels:{color:cText, font:{size:12}}}},
+      scales: {x:{grid:{color:cLine}, ticks:{color:cSub, font:{size:11}}},
+               y:{grid:{color:cLine}, ticks:{color:cSub, font:{size:11, family:"'IBM Plex Mono',monospace"}}}}},
+  }));
+}
+
+document.getElementById("ticker").addEventListener("keydown", e => { if(e.key === "Enter") run(); });
+renderWatch();
+</script>
+</body>
+</html>
