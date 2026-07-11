@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>相場千里眼・観測版 — 実データ四象分析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=IBM+Plex+Sans+JP:wght@400;600&family=IBM+Plex+Mono:wght@500;700&display=swap');
+:root{
+  --bg:#0E1220; --surface:#171D31; --surface2:#1E2540; --line:#2A3252;
+  --text:#EDEFF7; --sub:#9AA3BF; --up:#F25C4D; --down:#4C8DCB; --gold:#E8B44A;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{background:var(--bg); color:var(--text); font-family:'IBM Plex Sans JP',sans-serif; min-height:100vh;}
+.wrap{max-width:880px; margin:0 auto; padding:20px 16px 60px;}
+h1{font-family:'Shippori Mincho',serif; font-weight:800; font-size:30px; letter-spacing:.06em;}
+h1 .gold{color:var(--gold);}
+.tagline{font-size:11px; color:var(--sub); letter-spacing:.15em;}
+.sub-desc{font-size:12px; color:var(--sub); margin:4px 0 16px;}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px;}
+.row{display:flex; gap:8px;}
+input[type=text]{
+  flex:1; background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  color:var(--text); padding:12px 14px; font-size:15px; font-family:inherit; width:100%;
+}
+input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+button{cursor:pointer; font-family:inherit;}
+.btn-main{background:var(--gold); color:#141414; border:none; border-radius:10px; padding:0 20px; font-size:14px; font-weight:700;}
+.btn-main:disabled{background:var(--line); color:var(--sub); cursor:default;}
+.btn-ghost{background:transparent; border:1px solid var(--line); color:var(--sub); border-radius:999px; padding:8px 20px; font-size:13px;}
+.section-label{font-size:11px; color:var(--sub); letter-spacing:.1em; margin:16px 0 6px;}
+.chips{display:flex; flex-wrap:wrap; gap:8px;}
+.chip{display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 6px 6px 12px; font-size:13px;}
+.chip .open{background:none; border:none; color:var(--text); display:flex; gap:6px; align-items:center; font-size:13px;}
+.chip .del{background:var(--line); border:none; color:var(--sub); border-radius:50%; width:20px; height:20px; font-size:11px; line-height:1;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.hidden{display:none !important;}
+.loading-box{text-align:center; padding:40px 16px;}
+.loading-eye{font-family:'Shippori Mincho',serif; font-size:40px; animation:pulse 1.6s ease infinite;}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.error-box{background:rgba(242,92,77,.1); border:1px solid var(--up); border-radius:12px; padding:14px 16px; font-size:13px; margin-top:12px; line-height:1.7;}
+.summary{background:linear-gradient(160deg,var(--surface2),var(--surface)); border:1px solid var(--line); border-radius:16px; padding:20px; display:flex; flex-wrap:wrap; gap:20px; align-items:center; margin-bottom:16px;}
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-bottom:16px;}
+.axis-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px;}
+.axis-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+.axis-kanji{font-family:'Shippori Mincho',serif; font-size:20px; margin-right:8px;}
+.bar{height:4px; background:var(--line); border-radius:2px; margin-bottom:8px;}
+.bar>div{height:4px; border-radius:2px; transition:width .8s ease;}
+.axis-card p{font-size:12px; color:var(--sub); line-height:1.6; margin-bottom:6px;}
+.axis-card ul{padding-left:16px; font-size:12px; line-height:1.7;}
+.scenario-item{background:var(--surface2); border-radius:8px; padding:10px 12px;}
+.devil{background:linear-gradient(160deg,#241628,#1B1220); border:1px solid #4A2A4A; border-radius:12px; padding:16px;}
+.devil h3{font-family:'Shippori Mincho',serif; font-size:15px; color:#D08BD0; margin-bottom:8px;}
+.devil p{font-size:13px; line-height:1.8;}
+.stat-row{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;}
+.stat-row:last-child{border-bottom:none;}
+footer{margin-top:40px; border-top:1px solid var(--line); padding-top:14px; font-size:11px; color:var(--sub); line-height:1.8;}
+.center{text-align:center;}
+canvas{max-width:100%;}
+@media(prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header style="display:flex; align-items:baseline; gap:12px;">
+    <h1>相場<span class="gold">千里眼</span></h1>
+    <span class="tagline">観測版・実データ四象分析</span>
+  </header>
+  <p class="sub-desc">趨勢 × 勢い × 安定 × 過熱 — 1年分の実データを四つの眼で見通す(APIキー不要)</p>
+
+  <div class="row">
+    <input type="text" id="ticker" placeholder="銘柄コード等(例: 7203 / AAPL / USDJPY / ^N225 / BTC-USD)">
+    <button class="btn-main" id="goBtn" onclick="run()">見通す</button>
+  </div>
+  <p style="font-size:11px; color:var(--sub); margin-top:6px;">日本株は4桁コード(自動で.T付与)、為替は6文字ペア、日経平均は ^N225、ビットコインは BTC-USD</p>
+
+  <div id="watchSection" class="hidden">
+    <div class="section-label">登録銘柄</div>
+    <div class="chips" id="watchChips"></div>
+  </div>
+
+  <div id="loading" class="card loading-box hidden" style="margin-top:16px;">
+    <div class="loading-eye">👁</div>
+    <p id="loadMsg" style="color:var(--sub); font-size:14px; margin-top:12px;">データ取得中…</p>
+  </div>
+
+  <div id="errorBox" class="error-box hidden"></div>
+
+  <div id="result" class="hidden" style="margin-top:16px;"></div>
+
+  <div id="empty" class="center" style="padding:50px 20px; color:var(--sub);">
+    <div style="font-family:'Shippori Mincho',serif; font-size:52px; margin-bottom:10px;">👁</div>
+    <p style="font-size:14px; line-height:1.9;">銘柄コードを入力すると、過去1年の実データを取得し、<br>四つの眼(趨・勢・安・熱)で今後3ヶ月の値動きを見通します。</p>
+  </div>
+
+  <footer>⚠️ 本アプリの出力は過去の価格データに基づく統計的推定であり、投資助言ではありません。予測は外れることが常にあります。この観測版は価格データのみを扱い、業績・財務(ファンダメンタルズ)は分析対象外です。投資判断はご自身の責任で、必ず一次情報をご確認ください。データ提供: Yahoo Finance(非公式・遅延あり)</footer>
+</div>
+
+<script>
+const WEATHER = {sunny:{icon:"☀️",label:"快晴"},partlySunny:{icon:"⛅",label:"晴れ時々曇り"},cloudy:{icon:"☁️",label:"曇り"},rainy:{icon:"🌧️",label:"雨"},storm:{icon:"⛈️",label:"嵐"}};
+const FX = ["USD","JPY","EUR","GBP","AUD","NZD","CAD","CHF","CNY","KRW","TRY","MXN","ZAR","HKD","SGD"];
+let charts = [];
+
+/* ── ウォッチリスト ── */
+function getWatch(){ try{ return JSON.parse(localStorage.getItem("watchlist")||"[]"); }catch{ return []; } }
+function setWatch(l){ localStorage.setItem("watchlist", JSON.stringify(l)); renderWatch(); }
+function renderWatch(){
+  const list = getWatch();
+  document.getElementById("watchSection").classList.toggle("hidden", list.length === 0);
+  const chips = document.getElementById("watchChips"); chips.innerHTML = "";
+  list.forEach(w => {
+    const chip = document.createElement("div"); chip.className = "chip";
+    const open = document.createElement("button"); open.className = "open";
+    open.innerHTML = `<span>${(WEATHER[w.weather]||WEATHER.cloudy).icon}</span><span style="font-weight:600">${esc(w.name)}</span><span class="mono" style="color:${scoreColor(w.score)}">${w.score}</span>`;
+    open.onclick = () => { document.getElementById("ticker").value = w.ticker; run(); };
+    const del = document.createElement("button"); del.className = "del"; del.textContent = "✕";
+    del.onclick = () => setWatch(getWatch().filter(x => x.ticker !== w.ticker));
+    chip.append(open, del); chips.appendChild(chip);
+  });
+}
+
+/* ── ユーティリティ ── */
+function esc(s){ const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function scoreColor(s){ if(s>=70) return "var(--up)"; if(s>=50) return "var(--gold)"; if(s>=35) return "var(--sub)"; return "var(--down)"; }
+function show(id,on){ document.getElementById(id).classList.toggle("hidden", !on); }
+function setMsg(m){ document.getElementById("loadMsg").textContent = m; }
+function fmt(v){ return v >= 100 ? v.toLocaleString(undefined,{maximumFractionDigits:0}) : v.toLocaleString(undefined,{maximumFractionDigits:v>=1?2:4}); }
+
+/* ── データ取得(CORSプロキシ2系統でフォールバック) ── */
+async function fetchViaProxy(url){
+  const proxies = [
+    u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+    u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+  ];
+  let lastErr = null;
+  for(const p of proxies){
+    try {
+      const r = await fetch(p(url));
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } catch(e){ lastErr = e; }
+  }
+  throw new Error("データ取得に失敗しました(" + (lastErr?.message||"接続不可") + ")。通信環境を確認し、時間をおいて再試行してください。");
+}
+
+function normalizeSymbol(input){
+  let s = input.trim();
+  if(/^\d{4,5}$/.test(s)) return s + ".T";
+  const u = s.toUpperCase();
+  if(/^[A-Z]{6}$/.test(u) && FX.includes(u.slice(0,3)) && FX.includes(u.slice(3))) return u + "=X";
+  return s;
+}
+
+async function searchSymbol(q){
+  const data = await fetchViaProxy("https://query1.finance.yahoo.com/v1/finance/search?q=" + encodeURIComponent(q) + "&quotesCount=5&newsCount=0");
+  const hit = (data?.quotes||[]).find(x => x.symbol);
+  if(!hit) throw new Error("「" + q + "」に該当する銘柄が見つかりませんでした。ティッカーコードでお試しください。");
+  return hit.symbol;
+}
+
+async function fetchChart(symbol){
+  const data = await fetchViaProxy("https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(symbol) + "?range=1y&interval=1d");
+  const r = data?.chart?.result?.[0];
+  if(!r) throw new Error(data?.chart?.error?.description || "銘柄「" + symbol + "」のデータが見つかりませんでした。");
+  const ts = r.timestamp || [];
+  const q = r.indicators?.quote?.[0] || {};
+  const rows = [];
+  for(let i = 0; i < ts.length; i++){
+    if(q.close?.[i] != null) rows.push({t: ts[i]*1000, close: q.close[i], volume: q.volume?.[i] ?? null});
+  }
+  if(rows.length < 60) throw new Error("十分な価格履歴が取得できませんでした(上場間もない銘柄の可能性)。");
+  return {
+    symbol: r.meta?.symbol || symbol,
+    name: r.meta?.shortName || r.meta?.longName || symbol,
+    currency: r.meta?.currency || "",
+    market: r.meta?.exchangeName || r.meta?.fullExchangeName || "—",
+    price: r.meta?.regularMarketPrice ?? rows[rows.length-1].close,
+    rows,
+  };
+}
+
+/* ── テクニカル計算 ── */
+function sma(arr, n, i){ if(i+1 < n) return null; let s = 0; for(let k = i-n+1; k <= i; k++) s += arr[k]; return s/n; }
+function rsi14(closes){
+  const n = 14; if(closes.length <= n) return 50;
+  let g = 0, l = 0;
+  for(let i = 1; i <= n; i++){ const d = closes[i]-closes[i-1]; if(d > 0) g += d; else l -= d; }
+  let ag = g/n, al = l/n;
+  for(let i = n+1; i < closes.length; i++){
+    const d = closes[i]-closes[i-1];
+    ag = (ag*(n-1) + Math.max(d,0))/n;
+    al = (al*(n-1) + Math.max(-d,0))/n;
+  }
+  if(al === 0) return 100;
+  return 100 - 100/(1 + ag/al);
+}
+function analyze(chart){
+  const closes = chart.rows.map(r => r.close);
+  const vols = chart.rows.map(r => r.volume).filter(v => v != null && v > 0);
+  const n = closes.length, last = closes[n-1];
+  const sma25 = sma(closes, 25, n-1), sma75 = sma(closes, Math.min(75, n-1), n-1);
+  const rsi = rsi14(closes.slice(-120));
+  const ret = (d) => n > d ? last/closes[n-1-d] - 1 : 0;
+  const r1m = ret(21), r3m = ret(63);
+  // ボラティリティ(直近60日の日次対数リターン標準偏差)
+  const lr = [];
+  for(let i = Math.max(1, n-60); i < n; i++) lr.push(Math.log(closes[i]/closes[i-1]));
+  const mu = lr.reduce((a,b)=>a+b,0)/lr.length;
+  const sd = Math.sqrt(lr.reduce((a,b)=>a+(b-mu)*(b-mu),0)/Math.max(1, lr.length-1));
+  const annVol = sd*Math.sqrt(252);
+  const hi52 = Math.max(...closes), lo52 = Math.min(...closes);
+  const pos52 = (last - lo52)/Math.max(1e-9, hi52 - lo52); // 0〜1
+  // 出来高サージ(直近5日平均 / 60日平均)
+  let volSurge = 1;
+  if(vols.length > 65){
+    const a5 = vols.slice(-5).reduce((a,b)=>a+b,0)/5;
+    const a60 = vols.slice(-60).reduce((a,b)=>a+b,0)/60;
+    volSurge = a60 > 0 ? a5/a60 : 1;
+  }
+
+  /* 四象スコア */
+  // 趨(トレンド): 移動平均との位置関係
+  let trend = 50;
+  if(sma25) trend += last > sma25 ? 12 : -12;
+  if(sma75) trend += last > sma75 ? 12 : -12;
+  if(sma25 && sma75) trend += sma25 > sma75 ? 10 : -10;
+  trend += clamp(pos52*20 - 10, -10, 10);
+  trend = Math.round(clamp(trend, 5, 95));
+  // 勢(モメンタム): 1ヶ月・3ヶ月リターン
+  const momentum = Math.round(clamp(50 + r1m*250 + r3m*120, 5, 95));
+  // 安(安定度): 年率ボラティリティが低いほど高評価
+  const stability = Math.round(clamp(95 - annVol*130, 5, 95));
+  // 熱(過熱度): RSIと出来高サージ
+  const heat = Math.round(clamp(rsi + (volSurge-1)*15, 5, 95));
+
+  const overall = Math.round(clamp(trend*0.32 + momentum*0.3 + stability*0.13 + (100 - Math.abs(heat-58)*1.4)*0.25, 5, 95));
+  const weather = overall >= 70 ? "sunny" : overall >= 58 ? "partlySunny" : overall >= 45 ? "cloudy" : overall >= 35 ? "rainy" : "storm";
+
+  /* シナリオ(60営業日≒3ヶ月のボラティリティコーン) */
+  const drift = clamp(mu, -0.002, 0.002);
+  const T = 60;
+  const path = (sign) => {
+    const arr = [];
+    for(let t = 0; t <= T; t += 5){
+      arr.push(last * Math.exp(drift*t + sign*sd*Math.sqrt(t)));
+    }
+    return arr;
+  };
+  const bullPath = path(1), basePath = path(0), bearPath = path(-1);
+  const bias = (trend + momentum)/2;
+  const pBull = Math.round(clamp(22 + (bias-50)*0.55, 10, 55));
+  const pBear = Math.round(clamp(22 + (50-bias)*0.55, 10, 55));
+  const pBase = 100 - pBull - pBear;
+
+  /* 悪魔の代弁者(ルールベースの逆張り視点) */
+  const devils = [];
+  if(rsi >= 70) devils.push("RSIが" + Math.round(rsi) + "と買われ過ぎ圏。強いトレンドほど、利益確定の反落は突然やって来る。");
+  if(rsi <= 30) devils.push("RSIが" + Math.round(rsi) + "と売られ過ぎ圏だが、「安い」と「底」は別物。落ちるナイフは掴んだ手を切る。");
+  if(sma75 && last > sma75*1.18) devils.push("株価が75日線を" + Math.round((last/sma75-1)*100) + "%上回る乖離。平均への回帰は統計の重力である。");
+  if(sma75 && last < sma75*0.85) devils.push("75日線を大きく割り込んだ下落トレンド。逆張りは、トレンドの終わりを確認してからでも遅くない。");
+  if(annVol > 0.45) devils.push("年率ボラティリティ" + Math.round(annVol*100) + "%の荒れた値動き。想定レンジの外に飛び出す確率は見た目より高い。");
+  if(volSurge > 2) devils.push("出来高が平常時の" + volSurge.toFixed(1) + "倍に急増。誰かが大きく動いている——それが買いか売りかは、後にならないと分からない。");
+  if(devils.length === 0) devils.push("穏やかな指標が並ぶ時こそ要注意。相場の急変は、皆が油断した静けさの中から生まれる。");
+
+  return {
+    ticker: chart.symbol, name: chart.name, market: chart.market,
+    currentPrice: chart.price, currency: chart.currency,
+    asOf: new Date(chart.rows[n-1].t).toISOString().slice(0,10),
+    weather, overall,
+    axes: {
+      trend:    {score: trend,    summary: last > (sma75||last) ? "中期移動平均の上で推移する上昇基調" : "中期移動平均を下回る調整局面",
+                 points: ["25日線: " + (sma25 ? (last>sma25?"上抜け":"下回る") : "—"), "75日線: " + (sma75 ? (last>sma75?"上抜け":"下回る") : "—")]},
+      momentum: {score: momentum, summary: "直近1ヶ月 " + (r1m*100).toFixed(1) + "% / 3ヶ月 " + (r3m*100).toFixed(1) + "%",
+                 points: [r1m >= 0 ? "短期の勢いはプラス" : "短期の勢いはマイナス", pos52 > 0.8 ? "52週高値圏に位置" : pos52 < 0.2 ? "52週安値圏に位置" : "52週レンジの中間帯"]},
+      stability:{score: stability, summary: "年率ボラティリティ " + (annVol*100).toFixed(0) + "%",
+                 points: [annVol < 0.2 ? "値動きは穏やか" : annVol < 0.4 ? "標準的な変動水準" : "変動が大きくリスク高め", "想定レンジは扇形図の幅に反映"]},
+      heat:     {score: heat,     summary: "RSI(14) = " + rsi.toFixed(0) + (volSurge > 1.5 ? "、出来高急増中" : ""),
+                 points: [rsi >= 70 ? "買われ過ぎ圏" : rsi <= 30 ? "売られ過ぎ圏" : "中立圏", "出来高: 平常時の" + volSurge.toFixed(1) + "倍"]},
+    },
+    stats: {rsi, sma25, sma75, annVol, hi52, lo52, pos52, volSurge},
+    scenarios: [
+      {name:"強気", probability:pBull, targetPrice:bullPath[bullPath.length-1], path:bullPath, rationale:"上振れ(+1σ)経路。勢い持続時の目安"},
+      {name:"基本", probability:pBase, targetPrice:basePath[basePath.length-1], path:basePath, rationale:"直近トレンドの延長線"},
+      {name:"弱気", probability:pBear, targetPrice:bearPath[bearPath.length-1], path:bearPath, rationale:"下振れ(-1σ)経路。想定すべき下値目安"},
+    ],
+    devil: devils[0],
+    history: chart.rows.slice(-120),
+  };
+}
+
+/* ── 実行 ── */
+async function run(){
+  const input = document.getElementById("ticker").value.trim();
+  if(!input) return;
+  show("empty", false); show("result", false); show("errorBox", false); show("loading", true);
+  document.getElementById("goBtn").disabled = true;
+  try {
+    setMsg("銘柄を特定中…");
+    let symbol = normalizeSymbol(input);
+    let chart;
+    try {
+      setMsg("価格データを取得中…");
+      chart = await fetchChart(symbol);
+    } catch(e1) {
+      // 直接取得に失敗 → 銘柄名検索を試す
+      setMsg("銘柄名で検索中…");
+      symbol = await searchSymbol(input);
+      setMsg("価格データを取得中…");
+      chart = await fetchChart(symbol);
+    }
+    setMsg("四象分析を計算中…");
+    const a = analyze(chart);
+    render(a);
+  } catch(e){
+    const box = document.getElementById("errorBox");
+    box.textContent = e.message; box.classList.remove("hidden");
+  } finally {
+    show("loading", false);
+    document.getElementById("goBtn").disabled = false;
+  }
+}
+
+/* ── 描画 ── */
+function axisCardHTML(kanji, title, d){
+  const col = scoreColor(d.score);
+  return `<div class="axis-card">
+    <div class="axis-head">
+      <div><span class="axis-kanji" style="color:${col}">${kanji}</span><span style="font-size:13px;font-weight:600">${title}</span></div>
+      <span class="mono" style="font-size:18px;font-weight:700;color:${col}">${d.score}</span>
+    </div>
+    <div class="bar"><div style="width:${d.score}%;background:${col}"></div></div>
+    <p>${esc(d.summary)}</p>
+    <ul>${d.points.map(k => "<li>"+esc(k)+"</li>").join("")}</ul>
+  </div>`;
+}
+
+function render(a){
+  charts.forEach(c => c.destroy()); charts = [];
+  const wx = WEATHER[a.weather];
+  const watched = getWatch().some(w => w.ticker === a.ticker);
+  const el = document.getElementById("result");
+  el.innerHTML = `
+    <div class="summary">
+      <div style="flex:1 1 220px; min-width:200px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h2 style="font-family:'Shippori Mincho',serif;font-size:24px;">${esc(a.name)}</h2>
+          <span class="mono" style="font-size:13px;color:var(--sub)">${esc(a.ticker)}・${esc(a.market)}</span>
+        </div>
+        <div class="mono" style="font-size:30px;font-weight:700;margin-top:6px;">${fmt(a.currentPrice)} <span style="font-size:14px;color:var(--sub)">${esc(a.currency)}</span></div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:30px">${wx.icon}</span>
+          <div>
+            <div style="font-size:13px;font-weight:600">相場天気: ${wx.label}</div>
+            <div style="font-size:12px;color:var(--sub)">価格データに基づく統計的観測(${esc(a.asOf)}時点)</div>
+          </div>
+        </div>
+        <button id="watchBtn" class="btn-ghost" style="margin-top:14px;${watched?"":"border-color:var(--gold);color:var(--gold);"}">${watched ? "✓ 登録済み(タップで解除)" : "＋ 銘柄を登録する"}</button>
+      </div>
+      <div style="display:flex;gap:20px;align-items:center;">
+        <div style="position:relative;width:120px;height:120px;">
+          <canvas id="ringChart" width="120" height="120"></canvas>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <span class="mono" style="font-size:32px;font-weight:700;color:${scoreColor(a.overall)}">${a.overall}</span>
+            <span style="font-size:10px;color:var(--sub)">総合</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">実績と未来シナリオ扇形図 <span style="color:var(--sub);font-weight:400">(過去6ヶ月 + 今後3ヶ月)</span></div>
+      <canvas id="fanChart" height="260"></canvas>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0 0;">
+        ${a.scenarios.map(s => {
+          const col = s.name === "強気" ? "var(--up)" : s.name === "弱気" ? "var(--down)" : "var(--gold)";
+          return `<div class="scenario-item" style="border-left:3px solid ${col}">
+            <div style="display:flex;justify-content:space-between;font-size:13px;">
+              <span style="font-weight:700;color:${col}">${s.name} ${s.probability}%</span>
+              <span class="mono">${fmt(s.targetPrice)}</span>
+            </div>
+            <div style="font-size:11px;color:var(--sub);margin-top:4px;line-height:1.6;">${esc(s.rationale)}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="section-label" style="margin-top:0;">四象コンパス</div>
+        <canvas id="radarChart" height="230"></canvas>
+      </div>
+      <div>
+        ${axisCardHTML("趨","トレンド(移動平均)",a.axes.trend)}
+        ${axisCardHTML("勢","モメンタム(騰落率)",a.axes.momentum)}
+      </div>
+      <div>
+        ${axisCardHTML("安","安定度(ボラティリティ)",a.axes.stability)}
+        ${axisCardHTML("熱","過熱度(RSI・出来高)",a.axes.heat)}
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">観測データ</div>
+        <div class="stat-row"><span style="color:var(--sub)">52週高値 / 安値</span><span class="mono">${fmt(a.stats.hi52)} / ${fmt(a.stats.lo52)}</span></div>
+        <div class="stat-row"><span style="color:var(--sub)">52週レンジ内位置</span><span class="mono">${Math.round(a.stats.pos52*100)}%</span></div>
+        <div class="stat-row"><span style="color:var(--sub)">RSI (14日)</span><span class="mono">${a.stats.rsi.toFixed(1)}</span></div>
+        <div class="stat-row"><span style="color:var(--sub)">25日移動平均</span><span class="mono">${a.stats.sma25 ? fmt(a.stats.sma25) : "—"}</span></div>
+        <div class="stat-row"><span style="color:var(--sub)">75日移動平均</span><span class="mono">${a.stats.sma75 ? fmt(a.stats.sma75) : "—"}</span></div>
+        <div class="stat-row"><span style="color:var(--sub)">年率ボラティリティ</span><span class="mono">${(a.stats.annVol*100).toFixed(0)}%</span></div>
+      </div>
+      <div class="devil">
+        <h3>😈 悪魔の代弁者</h3>
+        <p>${esc(a.devil)}</p>
+        <p style="margin-top:10px;font-size:11px;color:var(--sub);">多数派の見立てが崩れるとしたら、この筋書きから。</p>
+      </div>
+    </div>
+
+    <div class="center"><button class="btn-ghost" onclick="run()">↻ 最新データで再分析する</button></div>
+  `;
+  show("result", true); show("empty", false);
+
+  document.getElementById("watchBtn").onclick = () => {
+    const list = getWatch();
+    if(list.some(w => w.ticker === a.ticker)) setWatch(list.filter(w => w.ticker !== a.ticker));
+    else setWatch([...list, {ticker:a.ticker, name:a.name, score:a.overall, weather:a.weather}]);
+    render(a);
+  };
+
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const cUp = css("--up"), cDown = css("--down"), cGold = css("--gold"), cLine = css("--line"), cText = css("--text"), cSub = css("--sub");
+
+  charts.push(new Chart(document.getElementById("ringChart"), {
+    type: "doughnut",
+    data: {datasets: [{data: [a.overall, 100 - a.overall],
+      backgroundColor: [a.overall >= 70 ? cUp : a.overall >= 50 ? cGold : a.overall >= 35 ? cSub : cDown, cLine],
+      borderWidth: 0, cutout: "78%"}]},
+    options: {plugins: {legend: {display:false}, tooltip: {enabled:false}}},
+  }));
+
+  charts.push(new Chart(document.getElementById("radarChart"), {
+    type: "radar",
+    data: {labels: ["趨","勢","安","熱"],
+      datasets: [{data: [a.axes.trend.score, a.axes.momentum.score, a.axes.stability.score, a.axes.heat.score],
+        borderColor: cGold, backgroundColor: "rgba(232,180,74,.25)", pointBackgroundColor: cGold}]},
+    options: {plugins: {legend: {display:false}},
+      scales: {r: {min:0, max:100, grid:{color:cLine}, angleLines:{color:cLine},
+        pointLabels:{color:cText, font:{size:14, family:"'Shippori Mincho',serif"}}, ticks:{display:false}}}},
+  }));
+
+  /* 実績 + 扇形図: 実データの後ろに予測経路を接続 */
+  const hist = a.history;
+  const histLabels = hist.map(r => { const d = new Date(r.t); return (d.getMonth()+1) + "/" + d.getDate(); });
+  const futLabels = a.scenarios[0].path.map((_, i) => i === 0 ? "" : "+" + i + "週");
+  const labels = [...histLabels, ...futLabels.slice(1)];
+  const histData = [...hist.map(r => r.close), ...Array(futLabels.length-1).fill(null)];
+  const futData = (path) => [...Array(histLabels.length-1).fill(null), ...path];
+  charts.push(new Chart(document.getElementById("fanChart"), {
+    type: "line",
+    data: {labels, datasets: [
+      {label:"実績", data:histData, borderColor:cText, borderWidth:1.5, pointRadius:0, tension:.2},
+      {label:"強気", data:futData(a.scenarios[0].path), borderColor:cUp, borderWidth:2, borderDash:[6,4], pointRadius:0, tension:.3},
+      {label:"基本", data:futData(a.scenarios[1].path), borderColor:cGold, borderWidth:2.5, borderDash:[6,4], pointRadius:0, tension:.3},
+      {label:"弱気", data:futData(a.scenarios[2].path), borderColor:cDown, borderWidth:2, borderDash:[6,4], pointRadius:0, tension:.3},
+    ]},
+    options: {plugins: {legend: {labels:{color:cText, font:{size:12}}}},
+      scales: {x:{grid:{color:cLine}, ticks:{color:cSub, font:{size:10}, maxTicksLimit:12}},
+               y:{grid:{color:cLine}, ticks:{color:cSub, font:{size:11, family:"'IBM Plex Mono',monospace"}}}},
+      interaction:{mode:"index", intersect:false}},
+  }));
+}
+
+document.getElementById("ticker").addEventListener("keydown", e => { if(e.key === "Enter") run(); });
+renderWatch();
+</script>
+</body>
+</html>
